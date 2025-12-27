@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Music Player</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { height: 100vh; display: flex; align-items: center; justify-content: center; background: #0b0b10; color: #cdd6f4; overflow: hidden; }
+
+        .player-container { 
+            background: rgba(255, 255, 255, 0.05); 
+            backdrop-filter: blur(20px); 
+            width: 350px; 
+            padding: 30px; 
+            border-radius: 40px; 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            position: relative;
+            z-index: 2;
+        }
+
+        .album-art img { width: 100%; height: 250px; border-radius: 25px; object-fit: cover; margin-bottom: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
+        
+        .song-details h2 { font-size: 1.4rem; }
+        .song-details p { font-size: 0.85rem; color: #a6adc8; margin-bottom: 20px; }
+
+        .volume-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100px;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 12px;
+            width: 12px;
+            background: #89b4fa;
+            border-radius: 50%;
+        }
+
+        .progress-bar { height: 5px; width: 100%; background: rgba(255,255,255,0.1); border-radius: 10px; cursor: pointer; position: relative; }
+        #progress-fill { position: absolute; height: 100%; width: 0%; background: #89b4fa; border-radius: 10px; }
+        .timer { display: flex; justify-content: space-between; margin: 10px 0 25px; font-size: 0.7rem; opacity: 0.6; }
+
+        .controls { display: flex; align-items: center; justify-content: space-between; }
+        .play-btn { width: 55px; height: 55px; background: #89b4fa; color: #11111b; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; border: none; }
+        
+        button { background: none; border: none; color: #a6adc8; cursor: pointer; font-size: 1.1rem; transition: 0.2s; }
+        button:hover { color: #89b4fa; }
+
+        .playlist {
+            position: absolute;
+            bottom: -100%;
+            left: 0;
+            width: 100%;
+            background: #181825;
+            padding: 20px;
+            border-radius: 30px 30px 40px 40px;
+            transition: 0.4s ease-in-out;
+            z-index: 1;
+        }
+        .playlist.active { bottom: 0; }
+        .playlist h3 { font-size: 1rem; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+        .track-item { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 0.8rem; cursor: pointer; padding: 5px; border-radius: 5px; }
+        .track-item:hover { background: rgba(255,255,255,0.05); }
+    </style>
+</head>
+<body>
+
+    <div class="player-container">
+        <audio id="main-audio" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"></audio>
+
+        <div class="album-art"><img id="cover" src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=1000" alt=""></div>
+
+        <div class="song-details">
+            <h2 id="title">Midnight City</h2>
+            <p id="artist">M83 • Hurry Up, We're Dreaming</p>
+        </div>
+
+        <div class="volume-container">
+            <i class="fas fa-volume-down"></i>
+            <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.5">
+            <i class="fas fa-volume-up"></i>
+        </div>
+
+        <div class="progress-bar" id="progress-area"><div id="progress-fill"></div></div>
+        <div class="timer">
+            <span id="current">0:00</span>
+            <span id="duration">0:00</span>
+        </div>
+
+        <div class="controls">
+            <button id="toggle-list"><i class="fas fa-list"></i></button>
+            <button><i class="fas fa-step-backward"></i></button>
+            <button class="play-btn" id="play-pause"><i class="fas fa-play"></i></button>
+            <button><i class="fas fa-step-forward"></i></button>
+            <button><i class="fas fa-heart"></i></button>
+        </div>
+
+        <div class="playlist" id="playlist">
+            <h3>Next Tracks</h3>
+            <div class="track-item"><strong>1.</strong> Midnight City - M83</div>
+            <div class="track-item"><strong>2.</strong> Starboy - The Weeknd</div>
+            <div class="track-item"><strong>3.</strong> Nightcall - Kavinsky</div>
+            <button id="close-list" style="margin-top: 10px; font-size: 0.8rem;">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const audio = document.getElementById('main-audio');
+        const playBtn = document.getElementById('play-pause');
+        const progressArea = document.getElementById('progress-area');
+        const progressFill = document.getElementById('progress-fill');
+        const volumeSlider = document.getElementById('volume-slider');
+        const playlist = document.getElementById('playlist');
+        const toggleList = document.getElementById('toggle-list');
+        const closeList = document.getElementById('close-list');
+
+        playBtn.onclick = () => {
+            if (audio.paused) {
+                audio.play();
+                playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+            } else {
+                audio.pause();
+                playBtn.innerHTML = '<i class="fas fa-play"></i>';
+            }
+        };
+        audio.ontimeupdate = (e) => {
+            const { currentTime, duration } = e.target;
+            progressFill.style.width = `${(currentTime / duration) * 100}%`;
+            
+            let curM = Math.floor(currentTime / 60);
+            let curS = Math.floor(currentTime % 60);
+            document.getElementById('current').innerText = `${curM}:${curS < 10 ? '0'+curS : curS}`;
+        };
+        volumeSlider.oninput = (e) => {
+            audio.volume = e.target.value;
+        };
+        progressArea.onclick = (e) => {
+            audio.currentTime = (e.offsetX / progressArea.clientWidth) * audio.duration;
+        };
+
+        
+        toggleList.onclick = () => playlist.classList.add('active');
+        closeList.onclick = () => playlist.classList.remove('active');
+
+        audio.onloadedmetadata = () => {
+            let durM = Math.floor(audio.duration / 60);
+            let durS = Math.floor(audio.duration % 60);
+            document.getElementById('duration').innerText = `${durM}:${durS < 10 ? '0'+durS : durS}`;
+        };
+    </script>
+</body>
+</html>
